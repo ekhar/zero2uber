@@ -1,101 +1,146 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { useState, useEffect } from "react";
+
+interface RideStatus {
+  userId: string;
+  location: string;
+  status: "idle" | "requested" | "accepted" | "complete" | "canceled";
+  driverId?: string;
+  eta?: number;
+}
+
+export default function HomePage() {
+  const [userId] = useState("user_123"); // Hardcoded for simplicity
+  const [location, setLocation] = useState("");
+  const [rideStatus, setRideStatus] = useState<RideStatus>({
+    userId,
+    location: "",
+    status: "idle",
+  });
+
+  const requestRide = async () => {
+    if (!location) return;
+    const res = await fetch("/api/request_ride", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_ID: userId, location }),
+    });
+    if (res.ok) {
+      setRideStatus((prev) => ({ ...prev, status: "requested", location }));
+    }
+  };
+
+  const pollStatus = async () => {
+    // In a real scenario, we'd have an endpoint to get the current status
+    // For now, simulate checking acceptance and ETA
+    if (rideStatus.status === "requested") {
+      // Simulate driver acceptance by checking an endpoint or waiting
+      // This would be replaced by a real call such as:
+      // const check = await fetch('/api/get_ride_status', ...)
+      // Simulate once accepted:
+      // In a real app, you'd only do this when the driver actually accepts.
+      const accepted = Math.random() < 0.3; // 30% chance on each poll
+      if (accepted) {
+        // Once accepted, get ETA from /api/get_eta
+        const etaRes = await fetch(
+          "/api/get_eta?point1=" +
+            encodeURIComponent(location) +
+            "&point2=" +
+            encodeURIComponent(location),
+        );
+        const { eta } = etaRes.ok ? await etaRes.json() : { eta: 5 };
+        setRideStatus((prev) => ({ ...prev, status: "accepted", eta }));
+      }
+    }
+  };
+
+  const cancelRide = async () => {
+    setRideStatus((prev) => ({ ...prev, status: "canceled" }));
+  };
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (rideStatus.status === "requested") {
+      interval = setInterval(pollStatus, 5000); // poll every 5s for simplicity
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rideStatus.status]);
+
+  const payForRide = async () => {
+    const res = await fetch("/api/pay", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_ID: userId }),
+    });
+    if (res.ok) {
+      setRideStatus((prev) => ({ ...prev, status: "complete" }));
+      alert("Payment complete!");
+    }
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div>
+      <h1>User Dashboard</h1>
+      {rideStatus.status === "idle" && (
+        <div>
+          <p>Enter your pickup location:</p>
+          <input
+            type="text"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="123 Main St"
+          />
+          <button onClick={requestRide}>Request Ride</button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      )}
+      {rideStatus.status === "requested" && (
+        <div>
+          <p>
+            Ride requested at {rideStatus.location}. Waiting for a driver to
+            accept...
+          </p>
+          <button onClick={cancelRide}>Cancel Ride</button>
+        </div>
+      )}
+      {rideStatus.status === "accepted" && (
+        <div>
+          <p>Driver accepted! ETA: {rideStatus.eta} minutes</p>
+          <p>
+            We will notify you when driver arrives. You can cancel if you need
+            to.
+          </p>
+          <button onClick={cancelRide}>Cancel Ride</button>
+          <button onClick={payForRide}>Pay Now (on arrival)</button>
+        </div>
+      )}
+      {rideStatus.status === "canceled" && (
+        <div>
+          <p>Ride canceled. You can request a new one.</p>
+          <button
+            onClick={() =>
+              setRideStatus({ userId, location: "", status: "idle" })
+            }
+          >
+            Request New Ride
+          </button>
+        </div>
+      )}
+      {rideStatus.status === "complete" && (
+        <div>
+          <p>Ride completed and paid. Thanks!</p>
+          <button
+            onClick={() =>
+              setRideStatus({ userId, location: "", status: "idle" })
+            }
+          >
+            New Ride
+          </button>
+        </div>
+      )}
     </div>
   );
 }
