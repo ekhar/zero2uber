@@ -1,6 +1,8 @@
+// app/page.tsx or pages/index.tsx depending on your setup
 "use client";
 
 import React, { useState, useEffect } from "react";
+import MapView from "./components/MapView";
 
 interface RideStatus {
   userId: string;
@@ -32,22 +34,13 @@ export default function HomePage() {
   };
 
   const pollStatus = async () => {
-    // In a real scenario, we'd have an endpoint to get the current status
-    // For now, simulate checking acceptance and ETA
     if (rideStatus.status === "requested") {
-      // Simulate driver acceptance by checking an endpoint or waiting
-      // This would be replaced by a real call such as:
-      // const check = await fetch('/api/get_ride_status', ...)
-      // Simulate once accepted:
-      // In a real app, you'd only do this when the driver actually accepts.
       const accepted = Math.random() < 0.3; // 30% chance on each poll
       if (accepted) {
-        // Once accepted, get ETA from /api/get_eta
         const etaRes = await fetch(
-          "/api/get_eta?point1=" +
-            encodeURIComponent(location) +
-            "&point2=" +
-            encodeURIComponent(location),
+          `/api/get_eta?point1=${encodeURIComponent(
+            location,
+          )}&point2=${encodeURIComponent(location)}`,
         );
         const { eta } = etaRes.ok ? await etaRes.json() : { eta: 5 };
         setRideStatus((prev) => ({ ...prev, status: "accepted", eta }));
@@ -62,12 +55,11 @@ export default function HomePage() {
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (rideStatus.status === "requested") {
-      interval = setInterval(pollStatus, 5000); // poll every 5s for simplicity
+      interval = setInterval(pollStatus, 5000); // poll every 5s
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rideStatus.status]);
 
   const payForRide = async () => {
@@ -81,6 +73,9 @@ export default function HomePage() {
       alert("Payment complete!");
     }
   };
+
+  // Define the initial map position (e.g., New York City)
+  const initialMapPosition: [number, number] = [40.7128, -74.006]; // NYC coordinates
 
   return (
     <div>
@@ -141,6 +136,9 @@ export default function HomePage() {
           </button>
         </div>
       )}
+
+      {/* Integrate the MapView component */}
+      <MapView initialPosition={initialMapPosition} />
     </div>
   );
 }
